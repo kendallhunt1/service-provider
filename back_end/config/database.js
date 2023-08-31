@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
 
-const sequelize = new Sequelize('service-provider', 'root', 'hiddenpassword. not the real thing', {
+const sequelize = new Sequelize('service-provider', 'root', 'database', {
   dialect: 'mysql',
   host: 'localhost',
 });

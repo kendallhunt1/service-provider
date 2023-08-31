@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 // const User_Roles = require('../models/UserRoles');
 const Company = require('../models/Company');
+const Customer = require('../models/Customer');
 const TeamMember = require('../models/TeamMember');
 
 router.post('/signup', async (req, res) => {
@@ -78,6 +79,23 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.get('/get-customers', async (req, res) => {
+  try {
+    const companyId = req.query.company_id;
+
+    const customers = await Customer.findAll({
+      where: {
+        company_id: companyId,
+      },
+    });
+
+    res.status(200).json(customers);
+  } catch (error) {
+    console.error('Error fetching customers:', error.message);
+    res.status(500).json({ error: 'Error fetching customers' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   const userId = req.params.id;
 
@@ -139,7 +157,6 @@ router.post('/post-add-services', async (req, res) => {
   }
 })
 
-
 router.post('/post-team-members', async (req, res) => {
   try {
     const teamMembers = req.body.teamMembers; // Extract the array from the request body
@@ -185,6 +202,35 @@ router.post('/post-team-members', async (req, res) => {
       .json({ error: 'Error adding team members. Please try again.' });
   }
 });
+
+router.post('/post-add-customer', async (req, res) => {
+  try {
+    const customerData = req.body;
+
+    // Create a new customer in the database
+    const newCustomer = await Customer.create({
+      customer_name: customerData.customerName,
+      email: customerData.email,
+      phone_number: customerData.phoneNumber,
+      street_address: customerData.streetAddress,
+      city: customerData.city,
+      state: customerData.state,
+      postal_code: customerData.postalCode,
+      country: customerData.country,
+      industry: customerData.industry,
+      notes: customerData.notes,
+      company_id: customerData.company_id
+    });
+
+    console.log('Customer added to DB:', newCustomer);
+
+    res.status(201).json({ message: 'Customer added successfully' });
+  } catch (err) {
+    console.error('Error adding customer:', err);
+    res.status(500).json({ error: 'Error adding customer. Please try again.' });
+  }
+});
+
 
 
 
