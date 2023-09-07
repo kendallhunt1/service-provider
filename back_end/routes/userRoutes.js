@@ -6,6 +6,7 @@ const User = require('../models/User');
 // const User_Roles = require('../models/UserRoles');
 const Company = require('../models/Company');
 const Customer = require('../models/Customer');
+const Case = require('../models/Case');
 const TeamMember = require('../models/TeamMember');
 
 router.post('/signup', async (req, res) => {
@@ -231,8 +232,38 @@ router.post('/post-add-customer', async (req, res) => {
   }
 });
 
+router.post('/post-add-case', async (req, res) => {
+  try {
+    const {
+      case_type,
+      status,
+      priority,
+      customer_name,
+      customer_email_address,
+      customer_phone_number,
+      case_details,
+      user_id,
+      company_id,
+    } = req.body;
 
+    // Create a new Case instance
+    const newCase = await Case.create({
+      case_type: case_type,
+      status: status,
+      priority: priority,
+      customer_name: customer_name,
+      customer_email_address: customer_email_address,
+      customer_phone_number: customer_phone_number,
+      case_details: case_details,
+      user_id: user_id,
+      company_id: company_id,
+    });
 
-
-
+    // Send a success response
+    res.status(201).json({ message: 'Case added successfully', case: newCase });
+  } catch (error) {
+    console.error('Error adding case:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 module.exports = router;
