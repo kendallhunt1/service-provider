@@ -42,7 +42,15 @@ const Case = sequelize.define('Case', {
     type: Sequelize.TEXT,
     field: 'case_details',
   },
-  // ...
+  assigned_user: {
+    type: Sequelize.INTEGER,
+    allowNull: true, // It can be null
+    references: {
+      model: User,
+      key: 'id',
+    },
+    field: 'assigned_user', // Define the field name in the database
+  },
 
   // Foreign key for the associated company
   company_id: {
@@ -56,7 +64,7 @@ const Case = sequelize.define('Case', {
 
   // Optional foreign key for the user who created the case
   user_id: {
-    type: Sequelize.INTEGER, // Assuming it's an incrementing integer
+    type: Sequelize.INTEGER,
     allowNull: true, // If not all cases have a user_id, you can set it to allowNull: true
     references: {
       model: User,

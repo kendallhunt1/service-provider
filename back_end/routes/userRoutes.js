@@ -97,6 +97,74 @@ router.get('/get-customers', async (req, res) => {
   }
 });
 
+router.get('/get-cases', async (req, res) => {
+  try {
+    const companyId = req.query.company_id;
+
+    const cases = await Case.findAll({
+      where: {
+        company_id: companyId,
+      },
+    });
+
+    res.status(200).json(cases);
+  } catch (error) {
+    console.error('Error fetching customers:', error.message);
+    res.status(500).json({ error: 'Error fetching customers' });
+  }
+})
+
+router.get('/get-team-members', async (req, res) => {
+  try {
+    const companyId = req.query.company_id;
+
+    const teamMembers = await User.findAll({
+      where: {
+        company_id: companyId,
+      },
+    });
+
+    res.status(200).json(teamMembers);
+  } catch (error) {
+    console.error('Error fetching customers:', error.message);
+    res.status(500).json({ error: 'Error fetching customers' });
+  }
+})
+
+router.post('/assign-team-member', async (req, res) => {
+  const { caseId, selectedTeamMembers } = req.body;
+  console.log(caseId)
+
+  try {
+    const caseInstance = await Case.findOne({
+      where: { case_id: caseId },
+    });
+
+    if (!caseInstance) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Find the selected team members by their user IDs
+    const teamMembers = await User.findAll({
+      where: { id: selectedTeamMembers },
+    });
+
+    // Perform the assignment action here, for example, updating the case's assigned_user field
+    // You might have to modify your Case model to include an 'assigned_user' field.
+    // Update the 'assigned_user' field of the case to be the selected team member's ID.
+    caseInstance.assigned_user = teamMembers[0].id; // Assuming you're assigning a single team member
+
+    // Save the changes to the case
+    await caseInstance.save();
+
+    // Send a success response
+    res.status(200).json({ message: 'Team member assigned to the case successfully' });
+  } catch (error) {
+    console.error('Error assigning team member:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+})
+
 router.get('/:id', async (req, res) => {
   const userId = req.params.id;
 
