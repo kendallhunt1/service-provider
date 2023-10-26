@@ -51,6 +51,11 @@ const Case = sequelize.define('Case', {
     },
     field: 'assigned_user', // Define the field name in the database
   },
+  team_notes: {
+    type: Sequelize.TEXT,
+    allowNull: true,
+    field: 'team_notes',
+  },
 
   // Foreign key for the associated company
   company_id: {

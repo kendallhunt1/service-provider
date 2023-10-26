@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const nodemailer = require('nodemailer'); // for sending emails
+const crypto = require('crypto'); // for generating random reset tokens
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -8,6 +10,20 @@ const Company = require('../models/Company');
 const Customer = require('../models/Customer');
 const Case = require('../models/Case');
 const TeamMember = require('../models/TeamMember');
+const CompanyServices = require('../models/CompanyServices');
+
+function generateResetToken() {
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  return resetToken;
+}
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'kendallhuntwork@gmail.com',
+    pass: 'fmdg nahi nliw erdt'
+  },
+});
 
 router.post('/signup', async (req, res) => {
   try {
@@ -80,6 +96,61 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const baseURL = req.protocol + '://' + req.get('host');
+
+  try {
+    // Check if a user with the provided email exists
+    const user = await User.findOne({ where: { email: email } });
+
+    if (!user) {
+      return res.status(404).json({ message: 'No account associated with that email' });
+    }
+
+    // Generate a reset token
+    const resetToken = generateResetToken();
+
+    // Update the user's account with the reset token
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // Token will expire in 1 hour
+    await user.save();
+
+    const resetLink = `http://localhost:19006/reset-password/${resetToken}`;
+    const mailOptions = {
+      from: 'kendallhuntwork@gmail.com', // Use the same email as the transporter
+      to: email,
+      subject: 'Password Reset Request',
+      text: `You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\n
+        Please click on the following link to complete the process:\n\n${resetLink}\n\n
+        If you did not request this, please ignore this email, and your password will remain unchanged.`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Error sending email:', error);
+        return res.status(500).json({ message: 'Email could not be sent.' });
+      }
+      console.log('Email sent: ' + info.response);
+      res.status(200).json({ message: 'Password reset email sent successfully' });
+    });
+  } catch (error) {
+    console.error('Error handling forgot password request:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/reset-password/:resetToken', (req, res) => {
+  // Extract the reset token from the URL
+  const resetToken = req.params.resetToken;
+
+  // Here, you can render a reset password page or send a response back to your frontend.
+  // For example:
+  // res.render('reset-password', { resetToken }); // If using a template engine like EJS
+  // Or, send a JSON response to your frontend with the resetToken
+  res.status(200).json({ resetToken });
+});
+
 router.get('/get-customers', async (req, res) => {
   try {
     const companyId = req.query.company_id;
@@ -131,9 +202,45 @@ router.get('/get-team-members', async (req, res) => {
   }
 })
 
+router.get('/get-company-services', async (req, res) => {
+  try {
+    const company_id = req.query.company_id;
+
+    // Find all services associated with the given company_id
+    const companyServices = await CompanyServices.findAll({
+      where: { company_id: company_id },
+    });
+
+    if (!companyServices) {
+      return res.status(404).json({ error: 'No services found for the company' });
+    }
+
+    // Return the list of selected services
+    console.log(companyServices)
+    res.json(companyServices);
+  } catch (error) {
+    console.error('Error fetching company services:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/update-user-information', (req, res) => {
+  const updatedUserInfo = req.body;
+
+  User.update(updatedUserInfo, {
+    where: { id: updatedUserInfo.id },
+  })
+    .then(() => {
+      res.status(200).json({ message: 'User information updated successfully' });
+    })
+    .catch((error) => {
+      console.error('Error updating user information:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    });
+});
+
 router.post('/assign-team-member', async (req, res) => {
   const { caseId, selectedTeamMembers } = req.body;
-  console.log(caseId)
 
   try {
     const caseInstance = await Case.findOne({
@@ -190,6 +297,49 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.get('/get-case/:caseId', async (req, res) => {
+  try {
+    const { caseId } = req.params;
+
+    // Query the database to find the case by case_id
+    const caseData = await Case.findOne({
+      where: { case_id: caseId },
+    });
+
+    if (!caseData) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Return the case data as JSON response
+    res.json(caseData);
+  } catch (error) {
+    console.error('Error fetching case data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/update-case/:caseId', async (req, res) => {
+  try {
+    const { caseId } = req.params;
+    const updatedData = req.body;
+    
+    // Query the database to find the case by case_id and update it
+    const [updatedRowCount] = await Case.update(updatedData, {
+      where: { case_id: caseId },
+    });
+
+    if (updatedRowCount === 0) {
+      return res.status(404).json({ error: 'Case not found' });
+    }
+
+    // Case data updated successfully
+    res.status(200).json({ message: 'Case data updated successfully' });
+  } catch (error) {
+    console.error('Error updating case data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.post('/post-add-services', async (req, res) => {
   const { user_id, user_role, selected_services, company_id } = req.body; // Get data from the request body
 
@@ -203,16 +353,21 @@ router.post('/post-add-services', async (req, res) => {
         where: { id: user_id },
       }
     );
+
     // Find the associated Company using the user's user_id
     const company = await Company.findOne({
-      where: { company_id: company_id }, // Assuming user_id is associated with a Company
+      where: { company_id: company_id },
     });
 
     if (company) {
-      // Update the selected_services of the Company
-      await company.update({
-        selected_services: JSON.stringify(selected_services), // Assuming selected_services is an array
-      });
+      for (const service of selected_services) {
+        await CompanyServices.create({
+          company_id: company_id,
+          service_name: service.service_name,
+          service_price: service.service_price,
+          service_id: service.service_id
+        });
+      }
 
       console.log('Selected services data submitted successfully for the company');
       res.status(201).json({ message: 'Selected services data submitted successfully for the company' });
@@ -229,14 +384,17 @@ router.post('/post-add-services', async (req, res) => {
 router.post('/post-team-members', async (req, res) => {
   try {
     const teamMembers = req.body.teamMembers; // Extract the array from the request body
-
+    
     // Loop through the team members and create them one by one
     for (const teamMember of teamMembers) {
+      const password = teamMember.password;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
       const newUser = await User.create({
         first_name: teamMember.first_name,
         last_name: teamMember.last_name,
         email: teamMember.email,
-        password: teamMember.password,
+        password: hashedPassword,
         phone_number: teamMember.phone_number,
         company_name: teamMember.company_name,
         company_id: teamMember.company_id,
